@@ -36,10 +36,10 @@ export default function Home() {
       ])
       
       if (scriptsResult.error) {
-        throw new Error(scriptsResult.error)
+        throw new Error(scriptsResult.error.message || '加载话术失败')
       }
       if (modulesResult.error) {
-        throw new Error(modulesResult.error)
+        throw new Error(modulesResult.error.message || '加载模块失败')
       }
       
       const scriptsData = scriptsResult.data || []
@@ -83,7 +83,7 @@ export default function Home() {
       }
       
       if (result.error) {
-        throw new Error(result.error)
+        throw new Error(result.error.message || '加载话术失败')
       }
       
       setScripts(result.data || [])

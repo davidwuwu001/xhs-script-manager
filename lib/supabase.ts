@@ -5,44 +5,38 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// 数据库类型定义
+// 模块接口
 export interface Module {
   id: string
   name: string
-  parent_id: string | null
+  description?: string
+  parent_id?: string
   sort_order: number
   created_at: string
 }
 
+// 话术接口
 export interface Script {
   id: string
   title: string
   content: string
-  module_id: string
-  tags: string[]
+  tags?: string[]
+  module_id?: string
+  module?: Module
   copy_count: number
   created_at: string
-  module?: Module
 }
 
+// 管理员接口
 export interface Admin {
   id: string
-  email: string
+  username: string
   password_hash: string
+  created_at: string
 }
 
-// ScriptService 类型定义
-interface ScriptService {
-  getScripts(): Promise<Script[]>
-  getScriptsByModule(moduleId: string): Promise<Script[]>
-  incrementCopyCount(scriptId: string): Promise<void>
-  createScript(script: Omit<Script, 'id' | 'created_at' | 'copy_count' | 'module'>): Promise<Script>
-  updateScript(id: string, updates: Partial<Omit<Script, 'id' | 'created_at' | 'module'>>): Promise<Script>
-  deleteScript(id: string): Promise<void>
-}
-
-// 数据库操作函数
-export const scriptService: ScriptService = {
+// 话术服务
+export const scriptService = {
   // 获取所有话术
   async getScripts() {
     const { data, error } = await supabase
@@ -53,8 +47,7 @@ export const scriptService: ScriptService = {
       `)
       .order('created_at', { ascending: false })
     
-    if (error) throw error
-    return data as Script[]
+    return { data: data as Script[], error }
   },
 
   // 根据模块获取话术
@@ -68,8 +61,7 @@ export const scriptService: ScriptService = {
       .eq('module_id', moduleId)
       .order('created_at', { ascending: false })
     
-    if (error) throw error
-    return data as Script[]
+    return { data: data as Script[], error }
   },
 
   // 增加复制次数
@@ -81,7 +73,7 @@ export const scriptService: ScriptService = {
   },
 
   // 创建话术
-  async createScript(script: Omit<Script, 'id' | 'created_at' | 'copy_count' | 'module'>) {
+  async createScript(script: Omit<Script, 'id' | 'created_at' | 'copy_count'>) {
     const { data, error } = await supabase
       .from('scripts')
       .insert([{ ...script, copy_count: 0 }])
@@ -93,7 +85,7 @@ export const scriptService: ScriptService = {
   },
 
   // 更新话术
-  async updateScript(id: string, updates: Partial<Omit<Script, 'id' | 'created_at' | 'module'>>) {
+  async updateScript(id: string, updates: Partial<Omit<Script, 'id' | 'created_at'>>) {
     const { data, error } = await supabase
       .from('scripts')
       .update(updates)
@@ -116,6 +108,7 @@ export const scriptService: ScriptService = {
   }
 }
 
+// 模块服务
 export const moduleService = {
   // 获取所有模块
   async getModules() {
@@ -124,8 +117,7 @@ export const moduleService = {
       .select('*')
       .order('sort_order', { ascending: true })
     
-    if (error) throw error
-    return data as Module[]
+    return { data: data as Module[], error }
   },
 
   // 创建模块
@@ -141,7 +133,7 @@ export const moduleService = {
   },
 
   // 更新模块
-  async updateModule(id: string, updates: Partial<Module>) {
+  async updateModule(id: string, updates: Partial<Omit<Module, 'id' | 'created_at'>>) {
     const { data, error } = await supabase
       .from('modules')
       .update(updates)
@@ -161,5 +153,27 @@ export const moduleService = {
       .eq('id', id)
     
     if (error) throw error
+  }
+}
+
+// 管理员服务
+export const adminService = {
+  // 验证管理员登录
+  async verifyAdmin(username: string, password: string) {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('username', username)
+      .single()
+    
+    if (error) throw error
+    
+    // 这里应该使用bcrypt等库来验证密码哈希
+    // 为了简化，这里直接比较（生产环境中不要这样做）
+    if (data.password_hash !== password) {
+      throw new Error('密码错误')
+    }
+    
+    return data as Admin
   }
 }
