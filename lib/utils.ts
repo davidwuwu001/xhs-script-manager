@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { Script } from './supabase'
 
+// 合并Tailwind CSS类名
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -10,10 +10,11 @@ export function cn(...inputs: ClassValue[]) {
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {
+      // 使用现代Clipboard API
       await navigator.clipboard.writeText(text)
       return true
     } else {
-      // 降级方案
+      // 降级方案：使用传统方法
       const textArea = document.createElement('textarea')
       textArea.value = text
       textArea.style.position = 'fixed'
@@ -22,51 +23,36 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       document.body.appendChild(textArea)
       textArea.focus()
       textArea.select()
-      const result = document.execCommand('copy')
-      textArea.remove()
-      return result
+      
+      const success = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      return success
     }
   } catch (error) {
-    console.error('Failed to copy text:', error)
+    console.error('复制失败:', error)
     return false
   }
 }
 
 // 格式化日期
-export function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-  if (diffInSeconds < 60) {
-    return '刚刚'
-  } else if (diffInSeconds < 3600) {
-    const minutes = Math.floor(diffInSeconds / 60)
-    return `${minutes}分钟前`
-  } else if (diffInSeconds < 86400) {
-    const hours = Math.floor(diffInSeconds / 3600)
-    return `${hours}小时前`
-  } else if (diffInSeconds < 2592000) {
-    const days = Math.floor(diffInSeconds / 86400)
-    return `${days}天前`
-  } else {
-    return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+export function formatDate(date: string | Date): string {
+  const d = new Date(date)
+  return d.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 // 截断文本
 export function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) {
-    return text
-  }
+  if (text.length <= maxLength) return text
   return text.slice(0, maxLength) + '...'
 }
 
-// 生成标签颜色
+// 生成随机颜色（用于标签）
 export function generateTagColor(tag: string): string {
   const colors = [
     'bg-blue-100 text-blue-800',
@@ -79,7 +65,7 @@ export function generateTagColor(tag: string): string {
     'bg-gray-100 text-gray-800'
   ]
   
-  // 基于标签名称生成一致的颜色
+  // 基于标签名生成一致的颜色
   let hash = 0
   for (let i = 0; i < tag.length; i++) {
     hash = tag.charCodeAt(i) + ((hash << 5) - hash)
@@ -88,29 +74,22 @@ export function generateTagColor(tag: string): string {
   return colors[Math.abs(hash) % colors.length]
 }
 
-// 过滤和搜索话术
-export function filterScripts(
-  scripts: Script[],
-  searchTerm: string,
-  selectedTags: string[]
-): Script[] {
+// 搜索过滤函数
+export function filterScripts(scripts: any[], searchTerm: string, selectedTags: string[] = []) {
   return scripts.filter(script => {
-    // 搜索词过滤
     const matchesSearch = !searchTerm || 
       script.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      script.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (script.module?.name && script.module.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      script.content.toLowerCase().includes(searchTerm.toLowerCase())
     
-    // 标签过滤
     const matchesTags = selectedTags.length === 0 || 
-      (script.tags && selectedTags.every(tag => script.tags!.includes(tag)))
+      selectedTags.some(tag => script.tags.includes(tag))
     
     return matchesSearch && matchesTags
   })
 }
 
 // 构建模块树结构
-export function buildModuleTree(modules: any[]): any[] {
+export function buildModuleTree(modules: any[]) {
   const moduleMap = new Map()
   const rootModules: any[] = []
   
@@ -121,14 +100,14 @@ export function buildModuleTree(modules: any[]): any[] {
   
   // 构建树结构
   modules.forEach(module => {
-    const moduleWithChildren = moduleMap.get(module.id)
+    const moduleNode = moduleMap.get(module.id)
     if (module.parent_id) {
       const parent = moduleMap.get(module.parent_id)
       if (parent) {
-        parent.children.push(moduleWithChildren)
+        parent.children.push(moduleNode)
       }
     } else {
-      rootModules.push(moduleWithChildren)
+      rootModules.push(moduleNode)
     }
   })
   
